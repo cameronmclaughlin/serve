@@ -1,4 +1,4 @@
-.PHONY: all clear
+.PHONY: all cl
 
 VER_MAJ := 1
 VER_MIN := 0
@@ -9,11 +9,11 @@ SRC = src/main.c src/window.c src/input.c src/commands.c src/processes.c
 OUT = bin/serve
 
 mac:
-	clear
+	cl
 	${MAKE} compileMac
 
 linux:
-	clear
+	cl
 	${MAKE} compileLinux
 
 compileMac: ${SRC}
@@ -24,5 +24,5 @@ compileLinux: ${SRC}
 	${C} ${CFLAGS} -DLINUX ${SRC} -o ${OUT}  -DVER_MAJ=${VER_MAJ} -DVER_MIN=${VER_MIN}
 	chmod +x ${OUT}
 
-clear:
+cl:
 	rm -rf bin/
