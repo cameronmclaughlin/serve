@@ -1,4 +1,4 @@
-.PHONY: all cl
+.PHONY: cl
 
 VER_MAJ := 1
 VER_MIN := 0
