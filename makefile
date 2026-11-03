@@ -3,11 +3,8 @@
 VER_MAJ := 1
 VER_MIN := 0
 
-BREW_PREFIX := $(shell brew --prefix)
-
 C = gcc
-CFLAGS = -Isrc/include -I$(BREW_PREFIX)/include
-LDFLAGS = -L$(BREW_PREFIX)/lib
+CFLAGS = -Isrc/include
 SRC = src/main.c src/window.c src/input.c src/commands.c src/processes.c
 OUT = bin/serve
 
@@ -20,11 +17,11 @@ linux:
 	${MAKE} compileLinux
 
 compileMac: ${SRC}
-	${C} ${CFLAGS} -DMAC ${SRC} -o ${OUT} ${LDFLAGS} -DVER_MAJ=${VER_MAJ} -DVER_MIN=${VER_MIN}
+	${C} ${CFLAGS} -DMAC ${SRC} -o ${OUT} -DVER_MAJ=${VER_MAJ} -DVER_MIN=${VER_MIN}
 	chmod +x ${OUT}
 
 compileLinux: ${SRC}
-	${C} ${CFLAGS} -DLINUX ${SRC} -o ${OUT} ${LDFLAGS} -DVER_MAJ=${VER_MAJ} -DVER_MIN=${VER_MIN}
+	${C} ${CFLAGS} -DLINUX ${SRC} -o ${OUT}  -DVER_MAJ=${VER_MAJ} -DVER_MIN=${VER_MIN}
 	chmod +x ${OUT}
 
 clear:
