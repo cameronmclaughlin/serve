@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <poll.h>
+#include <sys/wait.h>
 #ifdef MAC
     #include <sys/sysctl.h>
     #include <mach/mach_time.h>
