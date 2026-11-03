@@ -21,6 +21,7 @@ bool CompareStrings(char* string0, size_t size0, char* string1, size_t size1){
 }
 
 size_t StringLength(char* string){
+    if(string == NULL){ return 0; }
     int i;
     for(i = 0; i < 256; i++){
         if(string[i] == '\0'){
@@ -45,9 +46,11 @@ ProcessEntry* FetchByName(char* Name){
     size_t findLength = StringLength(Name)-1;
     for(int i = 0; i < 16; i++){
         ProcessEntry* cur = &ProcessIndex[i];
-        if(CompareStrings(cur->Name, StringLength(cur->Name)-1, Name, findLength)){
-            cur->index = i;
-            return cur;
+        if(cur->available == false){
+            if(CompareStrings(cur->Name, StringLength(cur->Name)-1, Name, findLength)){
+                cur->index = i;
+                return cur;
+            }
         }
     }
     return NULL;

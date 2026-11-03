@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <poll.h>
 #include <sys/wait.h>
+#include <stdlib.h>
 #ifdef MAC
     #include <sys/sysctl.h>
     #include <mach/mach_time.h>
