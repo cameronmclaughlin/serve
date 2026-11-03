@@ -9,8 +9,8 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <poll.h>
-#include <sys/sysctl.h>
 #ifdef MAC
+    #include <sys/sysctl.h>
     #include <mach/mach_time.h>
 #endif
 
@@ -58,16 +58,15 @@ int main(int argc, char* argv[], char* envp[]){
         return EXIT_FAILURE;
     }
 
-    // get system info
-    int mib[2];
-    mib[0] = CTL_HW;
-    mib[1] = HW_MEMSIZE;
-
+    // get system memory info
     int64_t avl = 0;
     int64_t memorySize = 0;
     size_t len = sizeof(memorySize);
 
     #ifdef MAC
+        int mib[2];
+        mib[0] = CTL_HW;
+        mib[1] = HW_MEMSIZE;
         if (sysctl(mib, 2, &memorySize, &len, NULL, 0) == 0) {
             physicalMemSize = memorySize / (1024 * 1024 * 1024);
         } else {
