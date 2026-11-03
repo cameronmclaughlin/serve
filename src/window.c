@@ -158,6 +158,10 @@ void meminfo(unsigned long* total, unsigned long* available){
     fclose(fp);
 }
 
+int lastLogPos = 0;
+int lastSeenPID = 0;
+double lastCpu = 0.0;
+
 void WinRefresh(){
     struct winsize ws;
     if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0){
@@ -258,18 +262,24 @@ void WinRefresh(){
     MoveCursor(0, 5);
     printf("\033[30;107m\033[KSTDOUT\033[0m");
 
-    // clear all stdout lines
-    for(int i = 6; i < height-1; i++){
-        MoveCursor(0, i);
-        printf("\033[K");
-    }
+    if(lastLogPos != cur->logPos || lastSeenPID != cur->PID || lastCpu != cpuPercent){
+        // clear all stdout lines
+        for(int i = 6; i < height-1; i++){
+            MoveCursor(0, i);
+            printf("\033[%i;%iH\033[K", i + 1, 1);
+        }
 
-    // print the current process's message log
-    curRow = 0;
-    for(int i = 0; i < cur->logPos; i++){
-        //MoveCursor(0, i+7);
-        //printf("%s", cur->messageLog[i]);
-        CustomPrint(cur->messageLog[i], 0, curRow+6);
+        // print the current process's message log
+        curRow = 0;
+        for(int i = 0; i < cur->logPos; i++){
+            //MoveCursor(0, i+7);
+            //printf("%s", cur->messageLog[i]);
+            CustomPrint(cur->messageLog[i], 0, curRow+6);
+        }
+
+        lastLogPos = cur->logPos;
+        lastSeenPID = cur->PID;
+        lastCpu = cpuPercent;
     }
 
     MoveCursor(0, height);

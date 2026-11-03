@@ -142,6 +142,8 @@ int main(int argc, char* argv[], char* envp[]){
                 GetProcessInput(cur);
             }
         }
+
+        usleep(10000); // 10ms sleep
     }
 
     CleanUp();
