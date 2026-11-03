@@ -28,7 +28,6 @@ char* buffer;
 
 char nickname[32];
 int nicknameLength = 0;
-int testPID;
 
 volatile sig_atomic_t forceExit = 0;
 
@@ -36,7 +35,7 @@ volatile sig_atomic_t forceExit = 0;
 void CleanUp(){
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
     write(STDOUT_FILENO, "\033[?1049l", 10); // switch to main framebuffer
-    kill(testPID, SIGKILL);
+    KillAllProcesses();
 }
 
 // catch CTRL+C
@@ -105,6 +104,15 @@ int main(int argc, char* argv[], char* envp[]){
     setbuf(stdout, NULL);
     WinRefresh();
 
+    // after all this, check if it should execute a macro
+    if(argc == 2){
+        char macroCmd[128];
+        int len = snprintf(macroCmd, 128, "macro p %s", argv[1]);
+        inputBufferPos = len;
+        memcpy(inputBuffer, macroCmd, len);
+        ProcessCommand();
+    }
+
     while(shouldRun && !forceExit){
         ProcessInput();
 
@@ -127,13 +135,11 @@ int main(int argc, char* argv[], char* envp[]){
                 }
                 if(WIFEXITED(status)){
                     cur->running = false;
-                    cur->available = true;
                     cur->exitCode = WEXITSTATUS(status);
                     cur->state = PROCESS_STOPPED;
                     continue;
                 }else if(WIFSIGNALED(status)){
                     cur->running = false;
-                    cur->available = true;
                     cur->exitCode = WTERMSIG(status);
                     cur->state = PROCESS_SIGSTOP;
                     continue;

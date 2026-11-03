@@ -17,6 +17,10 @@ char messageLog[128][128];
 
 void LogMessage(char* input){
     LogMessageAlt(input, ProcessIndex[0].messageLog, &ProcessIndex[0].logPos);
+    ProcessEntry* cur = &ProcessIndex[curProcess];
+    if(curProcess != 0){
+        LogMessageAlt(input, cur->messageLog, &cur->logPos);
+    }
     return;
     snprintf(messageLog[logPos], sizeof(messageLog[logPos]), "%s", input);
     logPos++;
@@ -102,7 +106,15 @@ void PutChar(char c, int x, int y){
     printf("%c", c);
 }
 
-void CustomPrint(char* str, int x, int y){
+void ClearSTDOUT(){
+    // clear all stdout lines
+    for(int i = 6; i < height-1; i++){
+        MoveCursor(0, i);
+        printf("\033[%i;%iH\033[K", i + 1, 1);
+    }
+}
+
+void CustomPrint(char* str, int x, int y, int curIndex){
     int len = strlen(str);
     int curx = x;
     int cury = y;
@@ -112,9 +124,33 @@ void CustomPrint(char* str, int x, int y){
     // print until \0, get final position of it
     for(int i = 0; i < len; i++){
         char cur = str[i];
-        if(cur != '\r' && cur != '\t'){
+        if(cur != '\r' && cur != '\t' && cur != '\033'){
+            printf("\033[0m");
             PutChar(str[i], curx, cury);
             curx++;
+        }else if(cur == '\033'){
+            // get escape sequence in diff buffer. only accept m
+            char esc[128];
+            bool notSafeANSI = false;
+            char* invalidANSI = "HfKABCD";
+            int j = 0;
+            for(j = 0; esc[j] != 'm' && j < len; j++){
+                esc[j] = str[i+j];
+                char c[2] = {esc[j], '\0'};
+                if(strstr(invalidANSI, c) != NULL){
+                    notSafeANSI = true;
+                    break;
+                }
+            }
+            if(!notSafeANSI){
+                // copy ANSI into sep buffer
+                char* ansiBuf = (char*)malloc(j);
+                memset(ansiBuf, 0, j);
+                memcpy(ansiBuf, (void*)&str[i], j-1);
+                printf("%s", ansiBuf);
+                free(ansiBuf);
+            }
+            i+=j;
         }
         if(curx == width || cur == '\n'){
             curx = 0;
@@ -123,12 +159,14 @@ void CustomPrint(char* str, int x, int y){
         if(cury == height-1){
             cury = 7;
             curRow = 0;
-            // push back
-            for(int i = 0; i < curp->logPos; i++){
-                memcpy(curp->messageLog[i], curp->messageLog[i+1], 128);
+            // clear log behind cur and push
+            ClearSTDOUT();
+            for(int i = 0; i < curIndex; i++){
+                memset(curp->messageLog[i], 0, 128);
             }
-            curp->logPos--;
-            str = curp->messageLog[curp->logPos];
+            memcpy(curp->messageLog[0], curp->messageLog[curIndex], 128);
+            curp->logPos = 1;
+            str = curp->messageLog[0];
         }
     }
     curRow += (cury - y) + 1;
@@ -263,18 +301,14 @@ void WinRefresh(){
     printf("\033[30;107m\033[KSTDOUT\033[0m");
 
     if(lastLogPos != cur->logPos || lastSeenPID != cur->PID || lastCpu != cpuPercent){
-        // clear all stdout lines
-        for(int i = 6; i < height-1; i++){
-            MoveCursor(0, i);
-            printf("\033[%i;%iH\033[K", i + 1, 1);
-        }
+        ClearSTDOUT();
 
         // print the current process's message log
         curRow = 0;
         for(int i = 0; i < cur->logPos; i++){
             //MoveCursor(0, i+7);
             //printf("%s", cur->messageLog[i]);
-            CustomPrint(cur->messageLog[i], 0, curRow+6);
+            CustomPrint(cur->messageLog[i], 0, curRow+6, i);
         }
 
         lastLogPos = cur->logPos;

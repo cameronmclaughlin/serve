@@ -9,6 +9,11 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+#ifdef MAC
+    #include <sys/types.h>
+    #include <dirent.h>
+#endif
+
 #include "processes.h"
 #include "input.h"
 #include "window.h"
@@ -35,4 +40,4 @@ struct BlockDesignator{
 };
 
 void SetNickname(char* nick, size_t nickLen);
-void ProcessCommand();
+bool ProcessCommand();

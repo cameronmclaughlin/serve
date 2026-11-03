@@ -43,7 +43,7 @@ Create a new process entry named the given name.
 Switches the current process entry to the one with that name.
 ### list
 Lists every active process entry and it's index.
-### cwd <directory>
+### cd <directory>
 Changes the current process's CWD.
 ### run <directory> <arguments>
 Runs a program at the directory with the arguments.

@@ -84,6 +84,7 @@ ProcessEntry* FirstAvailable(){
 void KillEntry(int index){
     KillProcess(index);
     ProcessEntry* entry = &ProcessIndex[index];
+    entry->available = true;
     free(entry->buffer);
     for(int i = 0; i < 512; i++){
         free(entry->messageLog[i]);
@@ -94,9 +95,11 @@ void KillEntry(int index){
 void KillProcess(int index){
     ProcessEntry* entry = &ProcessIndex[index];
 
-    kill(entry->PID, SIGKILL);
-    close(entry->pipeFD[0]);
-    close(entry->pipeFD[1]);
+    if(entry->running == true){
+        kill(entry->PID, SIGKILL);
+        close(entry->STDOUTpipe[0]);
+        close(entry->STDOUTpipe[1]);
+    }
 }
 
 void KillAllProcesses(){
@@ -134,13 +137,13 @@ void GetProcessInput(ProcessEntry* entry){
     }
     
     struct pollfd pfd;
-    pfd.fd = entry->pipeFD[0];
+    pfd.fd = entry->STDOUTpipe[0];
     pfd.events = POLLIN;
     int lastTerm = 0;
 
     ssize_t bytesRead;
     if(poll(&pfd, 1, 0) >= 0 && pfd.revents & POLLIN){
-        bytesRead = read(entry->pipeFD[0], entry->buffer, 1023);
+        bytesRead = read(entry->STDOUTpipe[0], entry->buffer, 1023);
         if(bytesRead > 0){
             entry->buffer[bytesRead] = '\0';
             LogMessageAlt(entry->buffer, entry->messageLog, &entry->logPos);
@@ -150,7 +153,13 @@ void GetProcessInput(ProcessEntry* entry){
 
 void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
     char* buffer = entry->buffer;
-    if(pipe(entry->pipeFD) == -1){
+    // stdout pipe
+    if(pipe(entry->STDOUTpipe) == -1){
+        KillProcess(entry->index);
+        return;
+    }
+    // stdin pipe 
+    if(pipe(entry->STDINpipe) == -1){
         KillProcess(entry->index);
         return;
     }
@@ -159,20 +168,45 @@ void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
     entry->PID = PID;
     if(PID == 0){
         // CHILD
-        close(entry->pipeFD[0]);
+        close(entry->STDOUTpipe[0]);
+        close(entry->STDINpipe[1]);
 
-        if(dup2(entry->pipeFD[1], STDOUT_FILENO) == -1){
+        if(dup2(entry->STDOUTpipe[1], STDOUT_FILENO) == -1){
             CleanUp();
             exit(EXIT_FAILURE);
         }
-        close(entry->pipeFD[1]);
+        if(dup2(entry->STDINpipe[0], STDIN_FILENO) == -1){
+            CleanUp();
+            exit(EXIT_FAILURE);
+        }
+        close(entry->STDOUTpipe[1]);
+        close(entry->STDINpipe[0]);
 
         execve(path, argv, mainENVP);
         CleanUp();
         exit(EXIT_FAILURE);
     }
+    int status = 0;
+    waitpid(PID, &status, WNOHANG);
+    if(WIFEXITED(status)){
+        entry->running = false;
+        entry->exitCode = WEXITSTATUS(status);
+        entry->state = PROCESS_STOPPED;
+    }else if(WIFSIGNALED(status)){
+        entry->running = false;
+        entry->exitCode = WTERMSIG(status);
+        entry->state = PROCESS_SIGSTOP;
+    }else if(WIFSTOPPED(status)){
+        entry->state = PROCESS_WAITING;
+        entry->exitCode = WSTOPSIG(status);
+    }
 
     entry->state = PROCESS_RUNNING;
     entry->running = true;
-    close(entry->pipeFD[1]);
+    close(entry->STDINpipe[0]);
+    close(entry->STDOUTpipe[1]);
+}
+
+bool fileExists(char* dir){
+    return access(dir, F_OK) == 0;
 }

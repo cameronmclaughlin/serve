@@ -75,7 +75,39 @@ int GetArgIndex(int arg){
     return -1;
 }
 
-void ProcessCommand(){
+bool searchPATH(char* name, char* finalPath){
+    char* path = getenv("PATH");
+    // get amount of path
+    int count = 0;
+    int len = strlen(path);
+    for(int i = 0; i < len; i++){
+        if(path[i] == ';' || path[i] == ':' || path[i] == '\0'){
+            count++;
+            path[i] = '\0';
+        }
+    }
+
+    char* paths[count];
+    int lastPos = 0;
+    int seenPaths = 0;
+    for(int i = 0; i < len; i++){
+        if(path[i] == '\0'){
+            paths[seenPaths++] = &path[lastPos];
+            lastPos = i + 1;
+        }
+    }
+
+    // now loop through each directory recursively
+    for(int i = 0; i < seenPaths-10; i++){
+        snprintf(finalPath, PATH_MAX, "%s/%s", paths[i], name);
+        if(fileExists(finalPath)){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ProcessCommand(){
     shouldProcessCommand = false;
 
     // practically, this just creates a list of BlockDesignators, each part of a command gets it's own.
@@ -129,67 +161,89 @@ void ProcessCommand(){
         if(fetch == NULL){
             snprintf(debug, 64, "Couldn't switch to %s: nonexistent", blocks[1].shortBlock);
             LogMessage(debug);
-            return;
+            return false;
         }
         chdir(fetch->cwd);
         SwitchProcess(fetch->index);
         snprintf(debug, 64, "Switched to %s (%i)", blocks[1].shortBlock, fetch->index);
         LogMessage(debug);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "run", 3)){
+        if(curProcess == 0){
+            LogMessage("Cannot run on host");
+            return false;
+        }
         if(cur->running == true){
             LogMessage("Process already running");
-            return;
+            return false;
         }
         chdir(cur->cwd);
         char debug[64];
         char* args[blockCount];
+
+        char path[PATH_MAX];
+        // check if should resolve from path
+        if(!fileExists(blocks[1].shortBlock)){
+            if(!searchPATH(blocks[1].shortBlock, path)){
+                LogMessage("No such file");
+                return false;
+            }
+        }else{
+            memcpy(path, blocks[1].shortBlock, blocks[1].bytes);
+        }
+        LogMessage(getenv("PATH"));
+
         for(int i = 0; i < blockCount - 1; i++){
             args[i] = blocks[i + 1].shortBlock;
-            LogMessage(args[i]);
         }
         args[blockCount-1] = NULL;
-        RunProcess(&ProcessIndex[curProcess], blocks[1].shortBlock, blockCount - 1, args);
-        snprintf(debug, 64, "Ran %s (%i)", blocks[1].shortBlock, curProcess);
+        RunProcess(&ProcessIndex[curProcess], path, blockCount - 1, args);
+        snprintf(debug, 64, "Ran %s (%i)", path, curProcess);
         LogMessage(debug);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "kill", 4)){
         if(cur->running == false){
             LogMessage("Process already stopped");
-            return;
+            return false;
         }
         if(curProcess == 0){
             LogMessage("Cannot kill host process");
-            return;
+            return false;
         }
         char debug[64];
-        KillProcess(curProcess);
         snprintf(debug, 64, "Killed %s (%i)", cur->Name, curProcess);
         LogMessage(debug);
+        KillProcess(curProcess);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "del", 3)){
-        if(cur->available == false){
-            LogMessage("Process already stopped");
-            return;
-        }
         if(curProcess == 0){
             LogMessage("Cannot kill host entry");
-            return;
+            return false;
         }
         char debug[64];
+        snprintf(debug, 64, "Killed entry %s (%i)", cur->Name, curProcess);
+        LogMessage(debug);
         KillEntry(curProcess);
         chdir(ProcessIndex[0].cwd);
         SwitchProcess(0);
-        snprintf(debug, 64, "Killed entry %s (%i)", cur->Name, curProcess);
-        LogMessage(debug);
-    }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "cwd", 3)){
+    }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "cd", 2)){
         // change cur working directory
+         if(blockCount < 2){
+            LogMessage("No directory provided");
+            return false;
+        }
         if(curProcess == 0){
             LogMessage("Cannot change host CWD");
-            return;
+            return false;
         }
-        char debug[64];
-        snprintf(debug, 64, "Changed cwd to %s", blocks[1].shortBlock);
+        char debug[128];
+        int c = chdir(blocks[1].shortBlock);
+        if(c != 0){
+            LogMessage("CD: No such directory");
+            return false;
+        }
+        char* newDir[PATH_MAX];
+        getcwd(newDir, PATH_MAX);
+        memcpy(cur->cwd, newDir, PATH_MAX);
+        snprintf(debug, 128, "Changed cwd to %s", newDir);
         LogMessage(debug);
-        memcpy(cur->cwd, blocks[1].shortBlock, PATH_MAX);
-        chdir(cur->cwd);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "quit", 4)){
         LogMessage("Quitting...");
         CleanUp();
@@ -202,13 +256,127 @@ void ProcessCommand(){
                 LogMessage(debug);
             }
         }
+    }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "in", 2)){
+        if(blockCount < 2){
+            LogMessage("No input provided");
+            return false;
+        }
+        // send input to process
+        if(curProcess == 0){
+            LogMessage("Cannot send input to host process");
+            return false;
+        }
+        if(cur->running == false){
+            LogMessage("Process not running");
+            return false;
+        }
+        write(cur->STDINpipe[1], blocks[1].block, StringLength(blocks[1].block));
+    }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "echo", 4)){
+        if(blockCount < 2){
+            LogMessage("No input provided");
+            return false;
+        }
+        LogMessage(blocks[1].block);
+    }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "macro", 5)){
+        if(blockCount < 2){
+            LogMessage("No macro provided");
+            return false;
+        }
+        char path[256];
+        if(blocks[1].shortBlock[0] == 'p'){
+            memcpy(path, blocks[2].shortBlock, strlen(blocks[2].shortBlock));
+        }else{
+            snprintf(path, 256, "macros/%s.macro", blocks[1].shortBlock);
+            LogMessage(path);
+        }
+
+        struct stat fileStats; stat(path, &fileStats);
+        char* macroBuffer = (char*)malloc(fileStats.st_size+1);
+        memset(macroBuffer, 0, fileStats.st_size+1);
+        int macroFD = open(path, O_RDONLY);
+        if(macroFD < 0){
+            LogMessage("Invalid macro name");
+            return false;
+        }
+        int readS = read(macroFD, macroBuffer, fileStats.st_size);
+        if(readS < 0){
+            LogMessage("Failed to read macro");
+            return false;
+        }
+
+        int lineCount = 0;
+        for(int i = 0; i < fileStats.st_size+1; i++){
+            if(macroBuffer[i] == '\n' || macroBuffer[i] == '\0'){
+                lineCount++;
+            }
+        }
+
+        char temp[128]; memcpy(temp, inputBuffer, 128);
+        int tempPos = inputBufferPos;
+
+        char* lines[64];
+        int lastPos = 0;
+        int seenLines = 0;
+        for(int i = 0; i < fileStats.st_size+1; i++){
+            // loop through each line until \n or \0
+            if(macroBuffer[i] == '\n' || macroBuffer[i] == '\0'){
+                macroBuffer[i] = '\0';
+                lines[seenLines++] = &macroBuffer[lastPos];
+                lastPos = i+1;
+            }
+        }
+
+        // loop through every line and process it
+        for(int i = 0; i < lineCount; i++){
+            memcpy(inputBuffer, lines[i], 128);
+            inputBufferPos = strlen(lines[i]);
+            // ignore shebang
+            if(inputBuffer[0] != '#'){
+                bool p = ProcessCommand();
+                if(!p){
+                    LogMessage("Macro failed");
+                    return false;
+                }
+            }
+            //LogMessage(inputBuffer);
+        }
+        memcpy(inputBuffer, temp, 128);
+        inputBufferPos = tempPos;
+
+        close(macroFD);
+        free(macroBuffer);
+    }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "ls", 2)){
+        #ifdef MAC
+            DIR* dirfd = opendir(cur->cwd);
+            if(dirfd == NULL){
+                LogMessage("Invalid directory");
+                return false;
+            }
+            struct dirent* entr;
+            while((entr = readdir(dirfd)) != NULL){
+                char colored[128];
+                if(entr->d_type == DT_DIR){
+                    snprintf(colored, 128, "[dir] %s", entr->d_name);
+                }else if(entr->d_type == DT_FIFO){
+                    snprintf(colored, 128, "[pipe] %s", entr->d_name);
+                }else{
+                    snprintf(colored, 128, "%s", entr->d_name);
+                }
+                LogMessage(colored);
+            }
+            closedir(dirfd);
+        #endif
+        #ifdef LINUX
+
+        #endif
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "help", 4)){
         LogMessage("help - Show this");
         LogMessage("create <name> - Make a new process entry");
         LogMessage("switch <name> - Switch the current process");
         LogMessage("list - List all process entries");
-        LogMessage("cwd <dir> - Change the currnet working directory");
+        LogMessage("cd <dir> - Change the current working directory");
         LogMessage("run <dir> <args> - Run a process");
+        LogMessage("in <input> - Send input to the current process");
         LogMessage("kill - Kill the current process");
         LogMessage("del - Delete the current process entry");
         LogMessage("clear - Clear the current screen");
@@ -217,9 +385,10 @@ void ProcessCommand(){
         cur->logPos = 0;
     }else{
         LogMessage("Invalid Command");
-        return;
+        return false;
     }
     memset(inputBuffer, 0, 128);
 
     inputBufferPos = 0;
+    return true;
 }

@@ -29,7 +29,8 @@ typedef struct ProcessEntry{
     bool available;
     bool running;
     int index;
-    int pipeFD[2];
+    int STDOUTpipe[2];
+    int STDINpipe[2];
     char* buffer;
     char* messageLog[512];
     int logPos;
@@ -59,3 +60,4 @@ extern void CleanUp();
 ProcessEntry* FetchByName(char* Name);
 void GetProcessInput(ProcessEntry* entry);
 ProcessEntry* FetchByPID(pid_t pid);
+bool fileExists(char* dir);

@@ -1,0 +1,6 @@
+#!bin/serve
+echo Running test script
+create testpy
+switch testpy
+run python3 -c "print('Hello, CLI')" -u
+echo Done
