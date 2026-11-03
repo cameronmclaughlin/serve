@@ -219,8 +219,6 @@ void WinRefresh(){
                 unsigned long vmem_bytes = vmpages * page_size;
                 unsigned long rss_bytes = rsspages * page_size;
 
-                printf("Virtual Memory: %lu KB\n", vmem_bytes / 1024);
-                printf("Physical Memory (RSS): %lu KB\n", rss_bytes / 1024);
                 physicalMem = rss_bytes / 1024.0 / 1024.0; // Convert to MB
             }
             fclose(memFP);

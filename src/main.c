@@ -75,7 +75,9 @@ int main(int argc, char* argv[], char* envp[]){
         }
     #endif
     #ifdef LINUX
-        meminfo(&physicalMemSize, &avl);
+        unsigned long physMem;
+        meminfo(&physMem, &avl);
+        physicalMemSize = physMem / (1024 * 1024 * 1024);
     #endif
 
     // enable terminal raw mode
