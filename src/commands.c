@@ -191,7 +191,7 @@ bool ProcessCommand(){
         }else{
             memcpy(path, blocks[1].shortBlock, strlen(blocks[1].shortBlock));
         }
-        LogMessage(getenv("PATH"));
+        //LogMessage(getenv("PATH"));
 
         for(int i = 0; i < blockCount - 1; i++){
             args[i] = blocks[i + 1].shortBlock;

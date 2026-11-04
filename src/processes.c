@@ -186,7 +186,7 @@ void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
             CleanUp();
             exit(EXIT_FAILURE);
         }
-        if(dup2(entry->STDERRpipe[0], STDERR_FILENO) == -1){
+        if(dup2(entry->STDERRpipe[1], STDERR_FILENO) == -1){
             CleanUp();
             exit(EXIT_FAILURE);
         }
