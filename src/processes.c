@@ -122,7 +122,8 @@ ProcessEntry* NewProcess(char* Name){
         avl->messageLog[i] = (char*)malloc(512);
     }
     size_t len = StringLength(Name);
-    avl->Name = (char*)malloc(len);
+    avl->Name = (char*)malloc(len+1);
+    memset(avl->Name, 0, len+1);
     avl->cwd = (char*)malloc(PATH_MAX);
     getcwd(avl->cwd, PATH_MAX);
 

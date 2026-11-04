@@ -181,6 +181,7 @@ bool ProcessCommand(){
         char* args[blockCount];
 
         char path[PATH_MAX];
+        memset(path, 0, PATH_MAX);
         // check if should resolve from path
         if(!fileExists(blocks[1].shortBlock)){
             if(!searchPATH(blocks[1].shortBlock, path)){
@@ -198,6 +199,7 @@ bool ProcessCommand(){
         args[blockCount-1] = NULL;
         RunProcess(&ProcessIndex[curProcess], path, blockCount - 1, args);
         snprintf(debug, 128, "Ran %s (%i)", path, curProcess);
+        LogMessage(path);
         LogMessage(debug);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "kill", 4)){
         if(cur->running == false){
