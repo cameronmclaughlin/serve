@@ -97,8 +97,7 @@ void KillProcess(int index){
 
     if(entry->running == true){
         kill(entry->PID, SIGKILL);
-        close(entry->STDOUTpipe[0]);
-        close(entry->STDOUTpipe[1]);
+        close(entry->ptyMasterFD);
     }
 }
 
@@ -138,13 +137,12 @@ void GetProcessInput(ProcessEntry* entry){
     }
     
     struct pollfd pfd;
-    pfd.fd = entry->STDOUTpipe[0];
+    pfd.fd = entry->ptyMasterFD;
     pfd.events = POLLIN;
-    int lastTerm = 0;
 
     ssize_t bytesRead;
     if(poll(&pfd, 1, 0) >= 0 && pfd.revents & POLLIN){
-        bytesRead = read(entry->STDOUTpipe[0], entry->buffer, 1023);
+        bytesRead = read(entry->ptyMasterFD, entry->buffer, 1023);
         if(bytesRead > 0){
             entry->buffer[bytesRead] = '\0';
             LogMessageAlt(entry->buffer, entry->messageLog, &entry->logPos);
@@ -154,7 +152,59 @@ void GetProcessInput(ProcessEntry* entry){
 
 void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
     char* buffer = entry->buffer;
+    struct winsize miniTerm; miniTerm = ws; miniTerm.ws_row-=7;
+    int pty = openpty(&entry->ptyMasterFD, &entry->ptySlaveFD, NULL, NULL, &miniTerm);
+    if(pty < 0){ LogMessage("Failed to init pseudo-terminal"); return; }
+
+    pid_t PID = fork();
+    entry->PID = PID;
+    if(PID == 0){
+        // child process
+        setsid();
+        ioctl(entry->ptySlaveFD, TIOCSCTTY, 0);
+        close(entry->ptyMasterFD);
+        if(dup2(entry->ptySlaveFD, STDOUT_FILENO) == -1){
+            CleanUp();
+            exit(EXIT_FAILURE);
+        }
+        if(dup2(entry->ptySlaveFD, STDIN_FILENO) == -1){
+            CleanUp();
+            exit(EXIT_FAILURE);
+        }
+        if(dup2(entry->ptySlaveFD, STDERR_FILENO) == -1){
+            CleanUp();
+            exit(EXIT_FAILURE);
+        }
+
+        execve(path, argv, mainENVP);
+        CleanUp();
+        exit(EXIT_FAILURE);
+    }
+
+    close(entry->ptySlaveFD);
+
+    int status = 0;
+    waitpid(PID, &status, WNOHANG);
+    if(WIFEXITED(status)){
+        entry->running = false;
+        entry->exitCode = WEXITSTATUS(status);
+        entry->state = PROCESS_STOPPED;
+    }else if(WIFSIGNALED(status)){
+        entry->running = false;
+        entry->exitCode = WTERMSIG(status);
+        entry->state = PROCESS_SIGSTOP;
+    }else if(WIFSTOPPED(status)){
+        entry->state = PROCESS_WAITING;
+        entry->exitCode = WSTOPSIG(status);
+    }
+
+    entry->state = PROCESS_RUNNING;
+    entry->running = true;
+
+    return;
+    // old code below, replaced by pseudo terminal
     // stdout pipe
+    /*
     if(pipe(entry->STDOUTpipe) == -1){
         KillProcess(entry->index);
         return;
@@ -218,6 +268,7 @@ void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
     close(entry->STDINpipe[0]);
     close(entry->STDERRpipe[1]);
     close(entry->STDOUTpipe[1]);
+    */
 }
 
 bool fileExists(char* dir){

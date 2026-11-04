@@ -2,5 +2,5 @@
 echo Running test script
 create testpy
 switch testpy
-run python3 -c "print('Hello, CLI')" -u
+run python3 -c "print('Hello, CLI')"
 echo Done

@@ -1,8 +1,5 @@
 #include "window.h"
 
-int width = 0;
-int height = 0;
-
 void PlaceChar(char c, int x, int y){
     printf("\033[%i;%iH%c", x, y, c);
 }
@@ -25,7 +22,7 @@ void LogMessage(char* input){
     snprintf(messageLog[logPos], sizeof(messageLog[logPos]), "%s", input);
     logPos++;
 
-    if(logPos == height-1 || logPos == 127){
+    if(logPos == ws.ws_row-1 || logPos == 127){
         logPos = 1;
     }
 
@@ -36,7 +33,7 @@ void LogMessageAlt(char* input, char* log[512], int* logPos){
     snprintf(log[*logPos], 512, "%s", input);
     (*logPos)++;
 
-    if(curRow == height-1 || *logPos == 511){
+    if(curRow == ws.ws_row-1 || *logPos == 511){
         *logPos = 1;
         curRow = 0;
     }
@@ -44,7 +41,7 @@ void LogMessageAlt(char* input, char* log[512], int* logPos){
     WinRefresh();
 }
 
-#ifdef LINUX
+#ifdef __linux__
 unsigned long long get_total_cpu_ticks() {
     FILE* fp = fopen("/proc/stat", "r");
     if (!fp) return 0;
@@ -80,7 +77,7 @@ unsigned long get_process_cpu_ticks(pid_t pid) {
 #endif
 
 void cpuTime(pid_t PID, uint64_t* user, uint64_t* system){
-    #ifdef MAC
+    #ifdef __APPLE__
         struct proc_taskinfo taskInfo;
         int ret = proc_pidinfo(PID, PROC_PIDTASKINFO, 0, &taskInfo, sizeof(taskInfo));
         if(ret == sizeof(taskInfo)){
@@ -95,7 +92,7 @@ void cpuTime(pid_t PID, uint64_t* user, uint64_t* system){
         }
     #endif
 
-    #ifdef LINUX
+    #ifdef __linux__
         *user = get_process_cpu_ticks(PID);
         *system = get_total_cpu_ticks();
     #endif
@@ -108,7 +105,7 @@ void PutChar(char c, int x, int y){
 
 void ClearSTDOUT(){
     // clear all stdout lines
-    for(int i = 6; i < height-1; i++){
+    for(int i = 6; i < ws.ws_row-1; i++){
         MoveCursor(0, i);
         printf("\033[%i;%iH\033[K", i + 1, 1);
     }
@@ -130,9 +127,10 @@ void CustomPrint(char* str, int x, int y, int curIndex){
             curx++;
         }else if(cur == '\033'){
             // get escape sequence in diff buffer. only accept m
-            char esc[128];
+            char* esc = (char*)malloc(len - i);
+            memcpy(esc, &str[i], len - i);
             bool notSafeANSI = false;
-            char* invalidANSI = "HfKABCD";
+            char* invalidANSI = "HfKABCD"; // make it safe for this
             int j = 0;
             for(j = 0; esc[j] != 'm' && j < len; j++){
                 esc[j] = str[i+j];
@@ -147,16 +145,17 @@ void CustomPrint(char* str, int x, int y, int curIndex){
                 char* ansiBuf = (char*)malloc(j);
                 memset(ansiBuf, 0, j);
                 memcpy(ansiBuf, (void*)&str[i], j-1);
-                printf("%s", ansiBuf);
+                puts(ansiBuf);
                 free(ansiBuf);
             }
+            free(esc);
             i+=j;
         }
-        if(curx == width || cur == '\n'){
+        if(curx == ws.ws_col || cur == '\n'){
             curx = 0;
             cury++;
         }
-        if(cury == height-1){
+        if(cury == ws.ws_row-1){
             cury = 7;
             curRow = 0;
             // clear log behind cur and push
@@ -201,12 +200,6 @@ int lastSeenPID = 0;
 double lastCpu = 0.0;
 
 void WinRefresh(){
-    struct winsize ws;
-    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0){
-        height = ws.ws_row;
-        width = ws.ws_col;
-    }
-
     ProcessEntry* cur = &ProcessIndex[curProcess];
 
     MoveCursor(0, 0);
@@ -218,7 +211,7 @@ void WinRefresh(){
     double physicalMem = 0.0;
     int threadNum = 0;
 
-    #ifdef MAC
+    #ifdef __APPLE__
         struct proc_taskinfo taskInfo;
         struct proc_bsdinfo bsdInfo;
 
@@ -249,7 +242,7 @@ void WinRefresh(){
         }
     #endif
 
-    #ifdef LINUX
+    #ifdef __linux__
         // cpu and mem usage
         char path[64];
         snprintf(path, sizeof(path), "/proc/%i/statm", cur->PID);
@@ -316,9 +309,9 @@ void WinRefresh(){
         lastCpu = cpuPercent;
     }
 
-    MoveCursor(0, height);
+    MoveCursor(0, ws.ws_row);
     printf("\033[30;107m\033[K> %s", inputBuffer);
-    MoveCursor(inputBufferPos+2, height);
+    MoveCursor(inputBufferPos+2, ws.ws_row);
     printf("\033[0m ");
 
     fflush(stdout);

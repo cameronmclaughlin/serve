@@ -7,8 +7,9 @@
 #include "termios.h"
 #include "stdlib.h"
 #include <sys/ioctl.h>
-#ifdef MAC
+#ifdef __APPLE__
     #include <libproc.h>
+    #include <util.h>
 #endif
 #include <string.h>
 #include <signal.h>
@@ -29,9 +30,11 @@ typedef struct ProcessEntry{
     bool available;
     bool running;
     int index;
-    int STDOUTpipe[2];
-    int STDINpipe[2];
-    int STDERRpipe[2];
+    //int STDOUTpipe[2];
+    //int STDINpipe[2];
+    //int STDERRpipe[2];
+    int ptyMasterFD;
+    int ptySlaveFD;
     char* buffer;
     char* messageLog[512];
     int logPos;
@@ -46,6 +49,8 @@ extern int curProcess;
 void initProcesses();
 
 extern char** mainENVP;
+
+extern struct winsize ws;
 
 bool CompareStrings(char* string0, size_t size0, char* string1, size_t size1);
 size_t StringLength(char* string);

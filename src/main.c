@@ -11,7 +11,7 @@
 #include <poll.h>
 #include <sys/wait.h>
 #include <stdlib.h>
-#ifdef MAC
+#ifdef __APPLE__
     #include <sys/sysctl.h>
     #include <mach/mach_time.h>
 #endif
@@ -36,6 +36,7 @@ void CleanUp(){
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
     write(STDOUT_FILENO, "\033[?1049l", 10); // switch to main framebuffer
     KillAllProcesses();
+    signal(SIGWINCH, SIG_DFL);
 }
 
 // catch CTRL+C
@@ -46,6 +47,8 @@ void sigExitHandler(int dummy){
 double physicalMemSize;
 
 char** mainENVP;
+
+struct winsize ws;
 
 int main(int argc, char* argv[], char* envp[]){
     mainENVP = envp;
@@ -64,7 +67,7 @@ int main(int argc, char* argv[], char* envp[]){
     int64_t memorySize = 0;
     size_t len = sizeof(memorySize);
 
-    #ifdef MAC
+    #ifdef __APPLE__
         int mib[2];
         mib[0] = CTL_HW;
         mib[1] = HW_MEMSIZE;
@@ -75,7 +78,7 @@ int main(int argc, char* argv[], char* envp[]){
             return EXIT_FAILURE;
         }
     #endif
-    #ifdef LINUX
+    #ifdef __linux__
         unsigned long physMem;
         meminfo(&physMem, &avl);
         physicalMemSize = physMem / (1024 * 1024 * 1024);
@@ -96,8 +99,12 @@ int main(int argc, char* argv[], char* envp[]){
     write(STDOUT_FILENO, "\033[?1049h", 9);
     write(STDOUT_FILENO, "\033[?25l", 7); // no cursor
 
-    // set up directories and files
-    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != 0){
+        CleanUp();
+        printf("Failed: couldn't get winsize");
+        return EXIT_FAILURE;
+    }
+    signal(SIGWINCH, SIG_IGN); // ignore resize
     
     initProcesses();
 

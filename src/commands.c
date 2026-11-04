@@ -195,6 +195,7 @@ bool ProcessCommand(){
 
         for(int i = 0; i < blockCount - 1; i++){
             args[i] = blocks[i + 1].shortBlock;
+            // dont support string's they're satan
         }
         args[blockCount-1] = NULL;
         RunProcess(&ProcessIndex[curProcess], path, blockCount - 1, args);
@@ -272,7 +273,7 @@ bool ProcessCommand(){
             LogMessage("Process not running");
             return false;
         }
-        write(cur->STDINpipe[1], blocks[1].block, StringLength(blocks[1].block));
+        write(cur->ptyMasterFD, blocks[1].block, StringLength(blocks[1].block));
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "echo", 4)){
         if(blockCount < 2){
             LogMessage("No input provided");
@@ -348,7 +349,7 @@ bool ProcessCommand(){
         close(macroFD);
         free(macroBuffer);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "ls", 2)){
-        #ifdef MAC
+        #ifdef __APPLE__
             DIR* dirfd = opendir(cur->cwd);
             if(dirfd == NULL){
                 LogMessage("Invalid directory");
@@ -368,7 +369,7 @@ bool ProcessCommand(){
             }
             closedir(dirfd);
         #endif
-        #ifdef LINUX
+        #ifdef __linux__
 
         #endif
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "help", 4)){

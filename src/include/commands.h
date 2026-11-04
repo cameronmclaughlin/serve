@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#ifdef MAC
+#ifdef __APPLE__
     #include <sys/types.h>
     #include <dirent.h>
 #endif
