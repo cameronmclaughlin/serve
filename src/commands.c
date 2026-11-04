@@ -98,7 +98,7 @@ bool searchPATH(char* name, char* finalPath){
     }
 
     // now loop through each directory recursively
-    for(int i = 0; i < seenPaths-10; i++){
+    for(int i = 0; i < seenPaths; i++){
         snprintf(finalPath, PATH_MAX, "%s/%s", paths[i], name);
         if(fileExists(finalPath)){
             return true;
@@ -177,7 +177,7 @@ bool ProcessCommand(){
             return false;
         }
         chdir(cur->cwd);
-        char debug[64];
+        char debug[128];
         char* args[blockCount];
 
         char path[PATH_MAX];
@@ -188,7 +188,7 @@ bool ProcessCommand(){
                 return false;
             }
         }else{
-            memcpy(path, blocks[1].shortBlock, blocks[1].bytes);
+            memcpy(path, blocks[1].shortBlock, strlen(blocks[1].shortBlock));
         }
         LogMessage(getenv("PATH"));
 
@@ -197,7 +197,7 @@ bool ProcessCommand(){
         }
         args[blockCount-1] = NULL;
         RunProcess(&ProcessIndex[curProcess], path, blockCount - 1, args);
-        snprintf(debug, 64, "Ran %s (%i)", path, curProcess);
+        snprintf(debug, 128, "Ran %s (%i)", path, curProcess);
         LogMessage(debug);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "kill", 4)){
         if(cur->running == false){
