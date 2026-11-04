@@ -164,6 +164,11 @@ void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
         KillProcess(entry->index);
         return;
     }
+    // stderr pipe 
+    if(pipe(entry->STDERRpipe) == -1){
+        KillProcess(entry->index);
+        return;
+    }
 
     pid_t PID = fork();
     entry->PID = PID;
@@ -171,6 +176,7 @@ void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
         // CHILD
         close(entry->STDOUTpipe[0]);
         close(entry->STDINpipe[1]);
+        close(entry->STDERRpipe[0]);
 
         if(dup2(entry->STDOUTpipe[1], STDOUT_FILENO) == -1){
             CleanUp();
@@ -180,8 +186,13 @@ void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
             CleanUp();
             exit(EXIT_FAILURE);
         }
+        if(dup2(entry->STDERRpipe[0], STDERR_FILENO) == -1){
+            CleanUp();
+            exit(EXIT_FAILURE);
+        }
         close(entry->STDOUTpipe[1]);
         close(entry->STDINpipe[0]);
+        close(entry->STDERRpipe[1]);
 
         execve(path, argv, mainENVP);
         CleanUp();
@@ -205,6 +216,7 @@ void RunProcess(ProcessEntry* entry, char* path, int argc, char* argv[]){
     entry->state = PROCESS_RUNNING;
     entry->running = true;
     close(entry->STDINpipe[0]);
+    close(entry->STDERRpipe[1]);
     close(entry->STDOUTpipe[1]);
 }
 

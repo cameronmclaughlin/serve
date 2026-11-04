@@ -31,6 +31,7 @@ typedef struct ProcessEntry{
     int index;
     int STDOUTpipe[2];
     int STDINpipe[2];
+    int STDERRpipe[2];
     char* buffer;
     char* messageLog[512];
     int logPos;
