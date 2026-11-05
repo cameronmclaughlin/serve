@@ -89,7 +89,7 @@ int main(int argc, char* argv[], char* envp[]){
     if(pages < 0 || pageSize < 0){ CleanUp(); printf("Failure, couldn't fetch memsize\n"); return EXIT_FAILURE; }
 
     long long totalPhysBytes = pages * pageSize;
-    physicalMemSize = (double)(totalPhysBytes / (1024 * 1024 * 1024));
+    physicalMemSize = ((double)totalPhysBytes / (1024.0 * 1024.0 * 1024.0));
 
     // enable terminal raw mode
     tcgetattr(STDIN_FILENO, &orig_termios);
