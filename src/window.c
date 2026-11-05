@@ -258,6 +258,20 @@ void WinRefresh(){
             }
             fclose(memFP);
         }
+
+        // threads
+        char* statusPath[PATH_MAX];
+        snprintf(statusPath, PATH_MAX, "/proc/%i/status", cur->PID);
+        FILE* fp = fopen(statusPath, "r");
+        if(fp){
+            char line[256];
+            while(fgets(line, sizeof(line), fp)){
+                if(strncmp(line, "Threads:", 8) == 0){
+                    sscanf(line, "Threads:\t%d", threadNum);
+                    break;
+                }
+            }
+        }
     #endif
 
     bool innacurateCPU = cur->index == 0;
