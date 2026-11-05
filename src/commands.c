@@ -289,9 +289,11 @@ bool ProcessCommand(){
             LogMessage("No macro provided");
             return false;
         }
-        char path[256];
+        char* path = (char*)malloc(256);
+        memset(path, 0, 256);
         if(blocks[1].shortBlock[0] == 'p'){
             memcpy(path, blocks[2].shortBlock, strlen(blocks[2].shortBlock));
+            LogMessage(path);
         }else{
             snprintf(path, 256, "macros/%s.macro", blocks[1].shortBlock);
             LogMessage(path);
@@ -350,6 +352,7 @@ bool ProcessCommand(){
         memcpy(inputBuffer, temp, 128);
         inputBufferPos = tempPos;
 
+        free(path);
         close(macroFD);
         free(macroBuffer);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "ls", 2)){
