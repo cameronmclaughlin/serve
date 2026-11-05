@@ -168,7 +168,7 @@ void CustomPrint(char* str, int x, int y, int curIndex){
             str = curp->messageLog[0];
         }
     }
-    curRow += (cury - y) + 1;
+    curRow += (cury - y);
 }
 
 void meminfo(unsigned long* total, unsigned long* available){

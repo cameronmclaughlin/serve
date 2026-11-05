@@ -273,7 +273,11 @@ bool ProcessCommand(){
             LogMessage("Process not running");
             return false;
         }
-        write(cur->ptyMasterFD, blocks[1].block, StringLength(blocks[1].block));
+        int len = strlen(blocks[1].block);
+        char* returnedString = (char*)malloc(len+2);
+        memcpy(returnedString, blocks[1].block, len);
+        returnedString[len] = '\r'; returnedString[len+1] = '\0';
+        write(cur->ptyMasterFD, returnedString, len+2);
     }else if(CompareStrings(blocks[0].shortBlock, StringLength(blocks[0].shortBlock), "echo", 4)){
         if(blockCount < 2){
             LogMessage("No input provided");
