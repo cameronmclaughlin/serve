@@ -271,6 +271,7 @@ void WinRefresh(){
                     break;
                 }
             }
+            fclose(fp);
         }
     #endif
 
