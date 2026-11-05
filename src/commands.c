@@ -242,7 +242,7 @@ bool ProcessCommand(){
             LogMessage("CD: No such directory");
             return false;
         }
-        char* newDir[PATH_MAX];
+        char newDir[PATH_MAX];
         getcwd(newDir, PATH_MAX);
         memcpy(cur->cwd, newDir, PATH_MAX);
         snprintf(debug, 128, "Changed cwd to %s", newDir);

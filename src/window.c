@@ -267,7 +267,7 @@ void WinRefresh(){
             char line[256];
             while(fgets(line, sizeof(line), fp)){
                 if(strncmp(line, "Threads:", 8) == 0){
-                    sscanf(line, "Threads:\t%d", threadNum);
+                    sscanf(line, "Threads:\t%d", &threadNum);
                     break;
                 }
             }

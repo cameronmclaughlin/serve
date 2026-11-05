@@ -11,6 +11,10 @@
     #include <libproc.h>
     #include <util.h>
 #endif
+#ifdef __linux__
+    #include <pty.h>
+#endif
+
 #include <string.h>
 #include <signal.h>
 #include <poll.h>
