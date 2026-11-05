@@ -72,7 +72,7 @@ int main(int argc, char* argv[], char* envp[]){
         mib[0] = CTL_HW;
         mib[1] = HW_MEMSIZE;
         if (sysctl(mib, 2, &memorySize, &len, NULL, 0) == 0) {
-            physicalMemSize = memorySize / (1024 * 1024 * 1024);
+            physicalMemSize = (double)(memorySize / (1024 * 1024 * 1024));
         } else {
             perror("Error retrieving physical memory size");
             return EXIT_FAILURE;
@@ -83,6 +83,13 @@ int main(int argc, char* argv[], char* envp[]){
         meminfo(&physMem, &avl);
         physicalMemSize = physMem / (1024 * 1024 * 1024);
     #endif
+
+    long pages = sysconf(_SC_PHYS_PAGES);
+    long pageSize = sysconf(_SC_PAGE_SIZE);
+    if(pages < 0 || pageSize < 0){ CleanUp(); printf("Failure, couldn't fetch memsize\n"); return EXIT_FAILURE; }
+
+    long long totalPhysBytes = pages * pageSize;
+    physicalMemSize = (double)(totalPhysBytes / (1024 * 1024 * 1024));
 
     // enable terminal raw mode
     tcgetattr(STDIN_FILENO, &orig_termios);
